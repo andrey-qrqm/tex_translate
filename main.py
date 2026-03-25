@@ -64,7 +64,6 @@ def should_translate(node) -> bool:
 
 
 def process_tex(file: TexSoup):
-    # Шаг 1: собираем все ноды, которые нужно перевести
     nodes_to_translate = [
         node for node in file.descendants
         if should_translate(node)
@@ -73,7 +72,6 @@ def process_tex(file: TexSoup):
     texts = [node.strip() for node in nodes_to_translate]
     print(f"Найдено фрагментов для перевода: {len(texts)}")
 
-    # Шаг 2: переводим батчами
     translations = []
     for i in range(0, len(texts), BATCH_SIZE):
         batch = texts[i: i + BATCH_SIZE]
@@ -81,7 +79,6 @@ def process_tex(file: TexSoup):
         batch_result = translate_batch(batch)
         translations.extend(batch_result)
 
-    # Шаг 3: выводим результат (здесь можно заменить ноды в документе)
     for original, translated in zip(texts, translations):
         print(f"  ОРИ: {original}")
         print(f"  ПЕР: {translated}")
@@ -90,7 +87,7 @@ def process_tex(file: TexSoup):
 
 if __name__ == '__main__':
     start = datetime.now()
-    soup = get_tex_file('example.tex')
+    soup = get_tex_file('./data/example.tex')
     process_tex(soup)
     end = datetime.now()
     print(f"Время выполнения: {end - start}")
