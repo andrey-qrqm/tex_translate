@@ -1,16 +1,17 @@
-#!/usr/bin/env python
 
 import sys
-
+import os
 import json
 
 from random import shuffle
-
 from transformers import AutoModelForSeq2SeqLM, DataCollatorForSeq2Seq, Seq2SeqTrainingArguments, Seq2SeqTrainer, M2M100Tokenizer
-
-from datasets import load_dataset, load_metric
-
+from datasets import load_dataset
+from evaluate import load
 from datetime import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
+HF_TOKEN = os.getenv("HF_TOKEN")
 
 def log(msg):
 	print(str(datetime.now()) + ": " + str(msg))
@@ -18,7 +19,7 @@ def log(msg):
 def get_trainer(tok, mdl, trainset, devset, devmeta, outdir, batch_size = 1, gradient_accumulation_steps = 4, learning_rate = 5e-05, weight_decay = 0.00, num_epochs = 10):
 	args = Seq2SeqTrainingArguments(
 		 outdir,
-		 evaluation_strategy = "epoch",
+		 eval_strategy = "epoch",
 		 save_strategy = "epoch",
 		 learning_rate=learning_rate,
 		 per_device_train_batch_size=batch_size,
@@ -28,12 +29,12 @@ def get_trainer(tok, mdl, trainset, devset, devmeta, outdir, batch_size = 1, gra
 		 save_total_limit=None,
 		 num_train_epochs=num_epochs,
 		 predict_with_generate=True,
-                 logging_dir='logs'   
+         logging_dir='logs'   
 	)
 	
 	data_collator = DataCollatorForSeq2Seq(tok, model=mdl)
 	
-	metric = load_metric("sacrebleu")
+	metric = load("sacrebleu")
 	
 	def compute_metrics(eval_preds):
 		hyp, ref = eval_preds
@@ -59,7 +60,7 @@ def get_trainer(tok, mdl, trainset, devset, devmeta, outdir, batch_size = 1, gra
 		train_dataset=trainset,
 		eval_dataset=devset,
 		data_collator=data_collator,
-		tokenizer=tok,
+		processing_class=tok,
 		compute_metrics=compute_metrics
 	)
 
@@ -74,30 +75,33 @@ if __name__ == "__main__":
 	_, outdir = sys.argv
 
 	log("Load model")         	
-	tokenizer = M2M100Tokenizer.from_pretrained("facebook/m2m100_418M")
+	tokenizer = M2M100Tokenizer.from_pretrained(
+		"facebook/m2m100_418M",
+		use_auth_token=HF_TOKEN
+		)
 	model = loadmdl("facebook/m2m100_418M", len(tokenizer))
 	
 	log("Load dataset")
-	data = load_dataset('masakhane/mafand', 'en-hau')
+	data = load_dataset('Helsinki-NLP/opus_books', 'en-ru')
+	split = data['train'].train_test_split(seed=42, test_size=0.1)
 
-	small_train_data = data['train'].shuffle(seed=42).select(range(1000))
+	small_train_data = split['train'].shuffle(seed=42).select(range(1000))
 	devlen = 100
-	small_test_data = data['validation'].shuffle(seed=42).select(range(devlen))
-
-	tokenizer.src_lang = 'ha'
-	tokenizer.tgt_lang = 'en'
-	
+	small_test_data = split['test'].shuffle(seed=42).select(range(devlen))
+	tokenizer.src_lang = 'en'
+	tokenizer.tgt_lang = 'ru'
+		
 	def tokenize_function(examples):
-		ins = [ex['hau'] for ex in examples['translation']]
-		outs = [ex['en'] for ex in examples['translation']]
-		
-		result = tokenizer(ins, max_length=128, padding=True, truncation=True)
-		
-		with tokenizer.as_target_tokenizer():
-			labels = tokenizer(outs, max_length=128, padding=True, truncation=True)
-		
-		result['labels'] = labels['input_ids']
-		
+		ins = [ex['en'] for ex in examples['translation']]
+		outs = [ex['ru'] for ex in examples['translation']]
+
+		result = tokenizer(
+			ins,
+			text_target=outs,  # replaces the as_target_tokenizer() block
+			max_length=128,
+			padding=True,
+			truncation=True
+		)
 		return result
 
 	traindata = small_train_data.map(tokenize_function, batched=True, desc="tokenize_function", remove_columns=['translation'])
