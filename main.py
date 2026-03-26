@@ -6,15 +6,6 @@ import re
 BATCH_SIZE = 8
 
 
-<<<<<<< HEAD
-def get_tex_file(file_path: str) -> TexSoup:
-    with open(file_path, 'r') as f:
-        soup = TexSoup(f.read())
-    return soup
-
-
-=======
->>>>>>> dev
 def is_patterned(text):
     patterns = [
         r'\{\{.*?\}\}',
@@ -66,37 +57,6 @@ def should_translate(node) -> bool:
     )
 
 
-<<<<<<< HEAD
-def process_tex(file: TexSoup):
-    # Шаг 1: собираем все ноды, которые нужно перевести
-    nodes_to_translate = [
-        node for node in file.descendants
-        if should_translate(node)
-    ]
-
-    texts = [node.strip() for node in nodes_to_translate]
-    print(f"Найдено фрагментов для перевода: {len(texts)}")
-
-    # Шаг 2: переводим батчами
-    translations = []
-    for i in range(0, len(texts), BATCH_SIZE):
-        batch = texts[i: i + BATCH_SIZE]
-        print(f"Батч {i // BATCH_SIZE + 1}: переводим {len(batch)} фрагментов...")
-        batch_result = translate_batch(batch)
-        translations.extend(batch_result)
-
-    # Шаг 3: выводим результат (здесь можно заменить ноды в документе)
-    for original, translated in zip(texts, translations):
-        print(f"  ОРИ: {original}")
-        print(f"  ПЕР: {translated}")
-        print()
-
-
-if __name__ == '__main__':
-    start = datetime.now()
-    soup = get_tex_file('example.tex')
-    process_tex(soup)
-=======
 def process_tex_by_positions(file_path: str):
     with open(file_path, 'r') as f:
         source = f.read()
@@ -169,6 +129,5 @@ if __name__ == '__main__':
     with open('./data/example_translated.tex', 'w') as f:
         f.write(result)
 
->>>>>>> dev
     end = datetime.now()
     print(f"Время выполнения: {end - start}")
