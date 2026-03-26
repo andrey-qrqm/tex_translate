@@ -53,4 +53,8 @@ if __name__ == "__main__":
     ]
     results = translate_batch(samples)
     for src, tgt in zip(samples, results):
+<<<<<<< HEAD
         print(f"{src!r} -> {tgt!r}")
+=======
+        print(f"{src!r} - {tgt!r}")
+>>>>>>> dev
