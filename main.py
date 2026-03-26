@@ -33,6 +33,15 @@ def is_metadata(node):
     ]
     return hasattr(node, 'name') and node.name in metadata_commands
 
+def is_leaf(node):
+    if isinstance(node, str):
+        return True
+    try:
+        children = list(node.children)
+        return len(children) == 0
+    except Exception:
+        return True
+
 
 def has_inline_math(text):
     return bool(re.search(r'(?<!\\)\$[^$]+\$', text))
@@ -63,31 +72,74 @@ def should_translate(node) -> bool:
     )
 
 
-def process_tex(file: TexSoup):
-    nodes_to_translate = [
-        node for node in file.descendants
-        if should_translate(node)
-    ]
+def process_tex_by_positions(file_path: str):
+    with open(file_path, 'r') as f:
+        source = f.read()
 
-    texts = [node.strip() for node in nodes_to_translate]
-    print(f"Найдено фрагментов для перевода: {len(texts)}")
+    soup = TexSoup(source)
+    pairs = []
+    seen_positions = set()  # чтобы не брать одну позицию дважды
 
+    def walk(node):
+        try:
+            contents = list(node.contents)
+        except Exception:
+            return
+        
+        print(f"  [walk] node type={type(node).__name__}, "
+              f"name={getattr(node, 'name', '—')}, contents={len(contents)}")
+        
+        for child in contents:
+            print(f"    [child] type={type(child).__name__}, "
+                  f"repr={repr(str(child))[:60]}, "
+                  f"should_translate={should_translate(child)}")
+            
+            if should_translate(child):
+                text = str(child)
+                # Ищем все вхождения, берём первое незанятое
+                start = 0
+                while True:
+                    pos = source.find(text, start)
+                    if pos == -1:
+                        print(f"    [MISS] не найдено в исходнике: {repr(text)}")
+                        break
+                    if pos not in seen_positions:
+                        seen_positions.add(pos)
+                        pairs.append((pos, pos + len(text), text.strip()))
+                        print(f"    [HIT] pos={pos} text={repr(text)}")
+                        break
+                    start = pos + 1
+            else:
+                walk(child)
+
+    walk(soup)
+
+    # Переводим
+    texts = [t for _, _, t in pairs]
     translations = []
     for i in range(0, len(texts), BATCH_SIZE):
-        batch = texts[i: i + BATCH_SIZE]
-        print(f"Батч {i // BATCH_SIZE + 1}: переводим {len(batch)} фрагментов...")
-        batch_result = translate_batch(batch)
-        translations.extend(batch_result)
+        translations.extend(translate_batch(texts[i:i + BATCH_SIZE]))
 
-    for original, translated in zip(texts, translations):
-        print(f"  ОРИ: {original}")
-        print(f"  ПЕР: {translated}")
-        print()
+    # Заменяем с конца (чтобы не сбить позиции)
+    pairs_with_translations = sorted(
+        zip(pairs, translations),
+        key=lambda x: x[0][0],
+        reverse=True  # с конца!
+    )
 
+    result = list(source)
+    for (start, end, _), translated in pairs_with_translations:
+        result[start:end] = list(translated)
+
+    return "".join(result)
 
 if __name__ == '__main__':
     start = datetime.now()
     soup = get_tex_file('./data/example.tex')
-    process_tex(soup)
+    result = process_tex_by_positions('./data/example.tex')
+
+    with open('./data/example_translated.tex', 'w') as f:
+        f.write(result)
+
     end = datetime.now()
     print(f"Время выполнения: {end - start}")
