@@ -6,8 +6,8 @@
 
 ```python3 main.py file.tex``` - translate file.tex
 
-Current language pair - eng to ru
-gi
+Current language pair - english to russian
+
 # m2m-100-finetune 
 Pulled from https://github.com/AlAntonov/m2m-100-finetune
 **Scripts for finetuning m2m-100 models**
