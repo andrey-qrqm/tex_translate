@@ -6,12 +6,6 @@ import re
 BATCH_SIZE = 8
 
 
-def get_tex_file(file_path: str) -> TexSoup:
-    with open(file_path, 'r') as f:
-        soup = TexSoup(f.read())
-    return soup
-
-
 def is_patterned(text):
     patterns = [
         r'\{\{.*?\}\}',
@@ -32,15 +26,6 @@ def is_metadata(node):
         'keywords', 'documentclass', 'usepackage'
     ]
     return hasattr(node, 'name') and node.name in metadata_commands
-
-def is_leaf(node):
-    if isinstance(node, str):
-        return True
-    try:
-        children = list(node.children)
-        return len(children) == 0
-    except Exception:
-        return True
 
 
 def has_inline_math(text):
@@ -105,7 +90,7 @@ def process_tex_by_positions(file_path: str):
                         break
                     if pos not in seen_positions:
                         seen_positions.add(pos)
-                        pairs.append((pos, pos + len(text), text.strip()))
+                        pairs.append((pos, pos + len(text), text))
                         print(f"    [HIT] pos={pos} text={repr(text)}")
                         break
                     start = pos + 1
@@ -115,7 +100,7 @@ def process_tex_by_positions(file_path: str):
     walk(soup)
 
     # Переводим
-    texts = [t for _, _, t in pairs]
+    texts = [t.strip() for _, _, t in pairs]
     translations = []
     for i in range(0, len(texts), BATCH_SIZE):
         translations.extend(translate_batch(texts[i:i + BATCH_SIZE]))
@@ -128,14 +113,17 @@ def process_tex_by_positions(file_path: str):
     )
 
     result = list(source)
-    for (start, end, _), translated in pairs_with_translations:
-        result[start:end] = list(translated)
+    for (start, end, original), translated in pairs_with_translations:
+        leading = original[: len(original) - len(original.lstrip())]
+        trailing = original[len(original.rstrip()):]
+        
+        restored = leading + translated + trailing
+        result[start:end] = list(restored)
 
     return "".join(result)
 
 if __name__ == '__main__':
     start = datetime.now()
-    soup = get_tex_file('./data/example.tex')
     result = process_tex_by_positions('./data/example.tex')
 
     with open('./data/example_translated.tex', 'w') as f:
