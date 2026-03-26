@@ -2,6 +2,7 @@ from TexSoup import TexSoup
 from model import translate_batch
 from datetime import datetime
 import re
+import sys
 
 BATCH_SIZE = 8
 
@@ -123,10 +124,17 @@ def process_tex_by_positions(file_path: str):
     return "".join(result)
 
 if __name__ == '__main__':
-    start = datetime.now()
-    result = process_tex_by_positions('./data/example.tex')
+    if len(sys.argv) == 1:
+        file_path = './data/example.tex'
+    else:
+        print("please provide path to .tex file as argument")
+        file_path = sys.argv[1]
 
-    with open('./data/example_translated.tex', 'w') as f:
+    start = datetime.now()
+    result = process_tex_by_positions(file_path)
+
+    return_file = file_path.rsplit('.', 1)[0] + '_translated.tex'
+    with open(return_file, 'w') as f:
         f.write(result)
 
     end = datetime.now()
