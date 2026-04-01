@@ -38,7 +38,7 @@ def is_special_command(node):
         'label', 'ref', 'cite', 'citep', 'citet', 'pageref',
         'includegraphics', 'input', 'include',
         'texttt', 'verb', 'lstinline',
-        'url', 'href', 'path'
+        'url', 'href', 'path', 'documentclass', 'usepackage'
     ]
     return hasattr(node, 'name') and node.name in preserve_commands
 
@@ -80,7 +80,7 @@ def process_tex_by_positions(file_path: str):
                   f"repr={repr(str(child))[:60]}, "
                   f"should_translate={should_translate(child)}")
             
-            if should_translate(child):
+            if should_translate(child) and not is_special_command(node):
                 text = str(child)
                 # Ищем все вхождения, берём первое незанятое
                 start = 0
